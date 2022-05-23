@@ -134,6 +134,15 @@ elif FLAGS.dataset == 'scannet':
     TEST_DATASET = ScannetDetectionDataset('val', num_points=NUM_POINT,
         augment=False,
         use_color=FLAGS.use_color, use_height=(not FLAGS.no_height))
+elif FLAGS.dataset == 'apple':
+    sys.path.append(os.path.join(ROOT_DIR, 'apple'))
+    from model_util_apple import AppleDatasetConfig
+    from apple_detection_dataset import AppleDetectionVotesDataset
+    DATASET_CONFIG = AppleDatasetConfig()
+    TRAIN_DATASET = AppleDetectionVotesDataset('train', num_points=NUM_POINT,
+        use_height=(not FLAGS.no_height))
+    TEST_DATASET = AppleDetectionVotesDataset('val', num_points=NUM_POINT,
+        use_height=(not FLAGS.no_height))
 else:
     print('Unknown dataset %s. Exiting...'%(FLAGS.dataset))
     exit(-1)
