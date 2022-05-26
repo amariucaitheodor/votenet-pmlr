@@ -59,12 +59,16 @@ class AppleDetectionVotesDataset(Dataset):
             max_gt_bboxes: unused
         """
         scan_name = self.scan_names[idx]
-        point_cloud = np.load(os.path.join(self.data_path + "/data/", scan_name)+'_pc.npy')['pc']  # Nx6
-        label = np.load(os.path.join(self.data_path + "/label/", scan_name)+'_bbox.npy', allow_picke=True).item()  # K,8
+        point_cloud = np.load(os.path.join(self.data_path + "/data/", scan_name)+'_pc.npy') #['pc']  # Nx6
+        label = np.load(os.path.join(self.data_path + "/label/", scan_name)+'_bbox.npy', allow_pickle=True).item()  # K,8
 
         bboxes = label["bboxes"]
-        bboxes[:, 3:6] += 0.01 # make boxes a little bit larger to include more points
+        uids = label["types"]
+        sem_labels = np.array([DC.type2class[uid] for uid in uids]).reshape((-1, 1))
+        bboxes = np.concatenate([bboxes, sem_labels], axis=-1)
+        bboxes[:, 3:6] += 0.01# make boxes a little bit larger to include more points
         gt_boxes = apple_utils.boxes_to_corners_3d(bboxes)
+
         point_votes = apple_utils.get_votes(point_cloud, gt_boxes) # Nx4
 
         point_cloud = point_cloud[:, 0:3]
@@ -94,7 +98,7 @@ class AppleDetectionVotesDataset(Dataset):
             angle_class, angle_residual = DC.angle2class(bbox[6])
             # NOTE: The mean size stored in size2class is of full length of box edges,
             # while in sunrgbd_data.py data dumping we dumped *half* length l,w,h.. so have to time it by 2 here
-            box3d_size = bbox[3:6]*2
+            box3d_size = bbox[3:6] # NOTE: We don't need this for ARKit, addressed in README.
             size_class, size_residual = DC.size2class(
                 box3d_size, DC.class2type[semantic_class])
             box3d_centers[i, :] = box3d_center
@@ -108,7 +112,7 @@ class AppleDetectionVotesDataset(Dataset):
         target_bboxes = np.zeros((MAX_NUM_OBJ, 6))
         for i in range(bboxes.shape[0]):
             bbox = bboxes[i]
-            corners_3d = sunrgbd_utils.my_compute_box_3d(
+            corners_3d = apple_utils.compute_box_3d(
                 bbox[0:3], bbox[3:6], bbox[6])
             # compute axis aligned box
             xmin = np.min(corners_3d[:, 0])
@@ -151,12 +155,12 @@ def viz_votes(pc, point_votes, point_votes_mask):
     inds = (point_votes_mask == 1)
     pc_obj = pc[inds, 0:3]
     pc_obj_voted1 = pc_obj + point_votes[inds, 0:3]
-    pc_obj_voted2 = pc_obj + point_votes[inds, 3:6]
-    pc_obj_voted3 = pc_obj + point_votes[inds, 6:9]
+    # pc_obj_voted2 = pc_obj + point_votes[inds, 3:6]
+    # pc_obj_voted3 = pc_obj + point_votes[inds, 6:9]
     pc_util.write_ply(pc_obj, 'pc_obj.ply')
     pc_util.write_ply(pc_obj_voted1, 'pc_obj_voted1.ply')
-    pc_util.write_ply(pc_obj_voted2, 'pc_obj_voted2.ply')
-    pc_util.write_ply(pc_obj_voted3, 'pc_obj_voted3.ply')
+    # pc_util.write_ply(pc_obj_voted2, 'pc_obj_voted2.ply')
+    # pc_util.write_ply(pc_obj_voted3, 'pc_obj_voted3.ply')
 
 
 def viz_obb(pc, label, mask, angle_classes, angle_residuals,

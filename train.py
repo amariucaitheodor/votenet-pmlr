@@ -37,7 +37,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'pointnet2'))
 sys.path.append(os.path.join(ROOT_DIR, 'models'))
 from pytorch_utils import BNMomentumScheduler
 # from tf_visualizer import Visualizer as TfVisualizer
-import wandb
+# import wandb
 from ap_helper import APCalculator, parse_predictions, parse_groundtruths
 
 parser = argparse.ArgumentParser()
@@ -173,8 +173,6 @@ net = Detector(num_class=DATASET_CONFIG.num_class,
                vote_factor=FLAGS.vote_factor,
                sampling=FLAGS.cluster_sampling)
 
-
-
 if torch.cuda.device_count() > 1:
   log_string("Let's use %d GPUs!" % (torch.cuda.device_count()))
   # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
@@ -263,10 +261,10 @@ def train_one_epoch():
         batch_interval = 10
         if (batch_idx+1) % batch_interval == 0:
             log_string(' ---- batch: %03d ----' % (batch_idx+1))
-            loss_dict = {key: stat_dict[key] / batch_interval for key in stat_dict}
-            loss_dict['epoch'] = EPOCH_CNT # TODO: not sure if this is correct
-            example_ct = (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE
-            train_log(loss_dict, example_ct)
+        #     loss_dict = {key: stat_dict[key] / batch_interval for key in stat_dict}
+        #     loss_dict['epoch'] = EPOCH_CNT # TODO: not sure if this is correct
+        #     example_ct = (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE
+        #     train_log(loss_dict, example_ct)
             # wandb.log({key:stat_dict[key]/batch_interval for key in stat_dict})
             # TRAIN_VISUALIZER.log_scalars({key:stat_dict[key]/batch_interval for key in stat_dict},
             #     (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE)
@@ -322,7 +320,7 @@ def evaluate_one_epoch():
     metrics_dict = ap_calculator.compute_metrics()
     for key in metrics_dict:
         log_string('eval %s: %f'%(key, metrics_dict[key]))
-    wandb.log(metrics_dict)
+    # wandb.log(metrics_dict)
     mean_loss = stat_dict['loss']/float(batch_idx+1)
     return mean_loss
 
@@ -333,11 +331,11 @@ def train(start_epoch):
     loss = 0
     # start a new experiment
 
-    hyperparameters = get_hyperparameters() # TODO: implement this
+    # hyperparameters = get_hyperparameters() # TODO: implement this
     # tell wandb to get started
-    with wandb.init(project=FLAGS.model + "-model", config=hyperparameters):
+    # with wandb.init(project=FLAGS.model + "-model", config=hyperparameters):
       # access all HPs through wandb.config, so logging matches execution!
-      wandb.watch(net)
+      # wandb.watch(net)
       for epoch in range(start_epoch, MAX_EPOCH):
         EPOCH_CNT = epoch
         log_string('**** EPOCH %03d ****' % (epoch))
