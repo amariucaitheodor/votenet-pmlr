@@ -36,7 +36,8 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'pointnet2'))
 sys.path.append(os.path.join(ROOT_DIR, 'models'))
 from pytorch_utils import BNMomentumScheduler
-from tf_visualizer import Visualizer as TfVisualizer
+# from tf_visualizer import Visualizer as TfVisualizer
+import wandb
 from ap_helper import APCalculator, parse_predictions, parse_groundtruths
 
 parser = argparse.ArgumentParser()
@@ -172,6 +173,8 @@ net = Detector(num_class=DATASET_CONFIG.num_class,
                vote_factor=FLAGS.vote_factor,
                sampling=FLAGS.cluster_sampling)
 
+
+
 if torch.cuda.device_count() > 1:
   log_string("Let's use %d GPUs!" % (torch.cuda.device_count()))
   # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
@@ -212,8 +215,8 @@ def adjust_learning_rate(optimizer, epoch):
         param_group['lr'] = lr
 
 # TFBoard Visualizers
-TRAIN_VISUALIZER = TfVisualizer(FLAGS, 'train')
-TEST_VISUALIZER = TfVisualizer(FLAGS, 'test')
+# TRAIN_VISUALIZER = TfVisualizer(FLAGS, 'train')
+# TEST_VISUALIZER = TfVisualizer(FLAGS, 'test')
 
 
 # Used for AP calculation
@@ -223,6 +226,11 @@ CONFIG_DICT = {'remove_empty_box':False, 'use_3d_nms':True,
     'dataset_config':DATASET_CONFIG}
 
 # ------------------------------------------------------------------------- GLOBAL CONFIG END
+
+def train_log(loss_dict, ct):
+    # Where the magic happens
+    wandb.log(loss_dict, step=ct)
+    print(f"Loss after " + str(ct).zfill(5) + f" examples: {loss_dict['loss']:.3f}")
 
 def train_one_epoch():
     stat_dict = {} # collect statistics
@@ -255,11 +263,17 @@ def train_one_epoch():
         batch_interval = 10
         if (batch_idx+1) % batch_interval == 0:
             log_string(' ---- batch: %03d ----' % (batch_idx+1))
-            TRAIN_VISUALIZER.log_scalars({key:stat_dict[key]/batch_interval for key in stat_dict},
-                (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE)
+            loss_dict = {key: stat_dict[key] / batch_interval for key in stat_dict}
+            loss_dict['epoch'] = EPOCH_CNT # TODO: not sure if this is correct
+            example_ct = (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE
+            train_log(loss_dict, example_ct)
+            # wandb.log({key:stat_dict[key]/batch_interval for key in stat_dict})
+            # TRAIN_VISUALIZER.log_scalars({key:stat_dict[key]/batch_interval for key in stat_dict},
+            #     (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE)
             for key in sorted(stat_dict.keys()):
                 log_string('mean %s: %f'%(key, stat_dict[key]/batch_interval))
                 stat_dict[key] = 0
+
 
 def evaluate_one_epoch():
     stat_dict = {} # collect statistics
@@ -297,9 +311,10 @@ def evaluate_one_epoch():
         if FLAGS.dump_results and batch_idx == 0 and EPOCH_CNT %10 == 0:
             MODEL.dump_results(end_points, DUMP_DIR, DATASET_CONFIG) 
 
-    # Log statistics
-    TEST_VISUALIZER.log_scalars({key:stat_dict[key]/float(batch_idx+1) for key in stat_dict},
-        (EPOCH_CNT+1)*len(TRAIN_DATALOADER)*BATCH_SIZE)
+    # # Log statistics
+    # TEST_VISUALIZER.log_scalars({key:stat_dict[key]/float(batch_idx+1) for key in stat_dict},
+    #     (EPOCH_CNT+1)*len(TRAIN_DATALOADER)*BATCH_SIZE)
+
     for key in sorted(stat_dict.keys()):
         log_string('eval mean %s: %f'%(key, stat_dict[key]/(float(batch_idx+1))))
 
@@ -307,7 +322,7 @@ def evaluate_one_epoch():
     metrics_dict = ap_calculator.compute_metrics()
     for key in metrics_dict:
         log_string('eval %s: %f'%(key, metrics_dict[key]))
-
+    wandb.log(metrics_dict)
     mean_loss = stat_dict['loss']/float(batch_idx+1)
     return mean_loss
 
@@ -316,7 +331,14 @@ def train(start_epoch):
     global EPOCH_CNT 
     min_loss = 1e10
     loss = 0
-    for epoch in range(start_epoch, MAX_EPOCH):
+    # start a new experiment
+
+    hyperparameters = get_hyperparameters() # TODO: implement this
+    # tell wandb to get started
+    with wandb.init(project=FLAGS.model + "-model", config=hyperparameters):
+      # access all HPs through wandb.config, so logging matches execution!
+      wandb.watch(net)
+      for epoch in range(start_epoch, MAX_EPOCH):
         EPOCH_CNT = epoch
         log_string('**** EPOCH %03d ****' % (epoch))
         log_string('Current learning rate: %f'%(get_current_lr(epoch)))
