@@ -332,7 +332,7 @@ def train(start_epoch):
 
     # hyperparameters = get_hyperparameters() # TODO: implement this
     # tell wandb to get started
-    with wandb.init(project=FLAGS.model + "-model", config=hyperparameters):
+    with wandb.init(project=FLAGS.model + "-model", entity="tamariucai"):
       # access all HPs through wandb.config, so logging matches execution!
       wandb.watch(net)
       for epoch in range(start_epoch, MAX_EPOCH):
@@ -347,16 +347,16 @@ def train(start_epoch):
         train_one_epoch()
         if EPOCH_CNT == 0 or EPOCH_CNT % 10 == 9: # Eval every 10 epochs
           loss = evaluate_one_epoch()
-	# Save checkpoint
-	save_dict = {'epoch': epoch+1, # after training one epoch, the start_epoch should be epoch+1
-	             'optimizer_state_dict': optimizer.state_dict(),
-	             'loss': loss,
-	            }
-	try: # with nn.DataParallel() the net is added as a submodule of DataParallel
-	    save_dict['model_state_dict'] = net.module.state_dict()
-	except:
-	    save_dict['model_state_dict'] = net.state_dict()
-	torch.save(save_dict, os.path.join(LOG_DIR, 'checkpoint.tar'))
+        # Save checkpoint
+        save_dict = {'epoch': epoch+1, # after training one epoch, the start_epoch should be epoch+1
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'loss': loss,
+                    }
+        try: # with nn.DataParallel() the net is added as a submodule of DataParallel
+            save_dict['model_state_dict'] = net.module.state_dict()
+        except:
+            save_dict['model_state_dict'] = net.state_dict()
+        torch.save(save_dict, os.path.join(LOG_DIR, 'checkpoint.tar'))
 
 if __name__=='__main__':
     train(start_epoch)
