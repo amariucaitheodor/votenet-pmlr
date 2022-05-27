@@ -56,7 +56,7 @@ def compute_vote_loss(end_points):
     seed_gt_votes = torch.gather(end_points['vote_label'], 1, seed_inds_expand)
     # print(seed_gt_votes.size())
     # print(end_points['seed_xyz'].size())
-    seed_gt_votes += vote_xyz
+    seed_gt_votes += end_points['seed_xyz']
     # print(seed_gt_votes.size())
 
     # Compute the min of min of distance
