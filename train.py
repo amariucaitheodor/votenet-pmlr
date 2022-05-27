@@ -336,18 +336,18 @@ def train(start_epoch):
     # with wandb.init(project=FLAGS.model + "-model", config=hyperparameters):
       # access all HPs through wandb.config, so logging matches execution!
       # wandb.watch(net)
-      for epoch in range(start_epoch, MAX_EPOCH):
-        EPOCH_CNT = epoch
-        log_string('**** EPOCH %03d ****' % (epoch))
-        log_string('Current learning rate: %f'%(get_current_lr(epoch)))
-        log_string('Current BN decay momentum: %f'%(bnm_scheduler.lmbd(bnm_scheduler.last_epoch)))
-        log_string(str(datetime.now()))
+    for epoch in range(start_epoch, MAX_EPOCH):
+     EPOCH_CNT = epoch
+     log_string('**** EPOCH %03d ****' % (epoch))
+     log_string('Current learning rate: %f'%(get_current_lr(epoch)))
+     log_string('Current BN decay momentum: %f'%(bnm_scheduler.lmbd(bnm_scheduler.last_epoch)))
+     log_string(str(datetime.now()))
         # Reset numpy seed.
         # REF: https://github.com/pytorch/pytorch/issues/5059
-        np.random.seed()
-        train_one_epoch()
-        if EPOCH_CNT == 0 or EPOCH_CNT % 10 == 9: # Eval every 10 epochs
-            loss = evaluate_one_epoch()
+     np.random.seed()
+     train_one_epoch()
+     if EPOCH_CNT == 0 or EPOCH_CNT % 10 == 9: # Eval every 10 epochs
+        loss = evaluate_one_epoch()
         # Save checkpoint
         save_dict = {'epoch': epoch+1, # after training one epoch, the start_epoch should be epoch+1
                     'optimizer_state_dict': optimizer.state_dict(),
