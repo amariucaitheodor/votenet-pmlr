@@ -6,6 +6,10 @@
 
 """ Dataset for 3D object detection on Apple data (with support of vote supervision).
 """
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(BASE_DIR)
+sys.path.append(BASE_DIR)
+sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 from model_util_apple import AppleDatasetConfig
 import apple_utils
 import pc_util
@@ -13,10 +17,8 @@ import os
 import sys
 import numpy as np
 from torch.utils.data import Dataset
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.dirname(BASE_DIR)
-sys.path.append(BASE_DIR)
-sys.path.append(os.path.join(ROOT_DIR, 'utils'))
+
+
 
 DC = AppleDatasetConfig()  # dataset specific config
 MAX_NUM_OBJ = 64  # maximum number of objects allowed per scene
@@ -98,7 +100,7 @@ class AppleDetectionVotesDataset(Dataset):
             angle_class, angle_residual = DC.angle2class(bbox[6])
             # NOTE: The mean size stored in size2class is of full length of box edges,
             # while in sunrgbd_data.py data dumping we dumped *half* length l,w,h.. so have to time it by 2 here
-            box3d_size = bbox[3:6] # NOTE: We don't need this for ARKit, addressed in README.
+            box3d_size = bbox[3:6] * 2
             size_class, size_residual = DC.size2class(
                 box3d_size, DC.class2type[semantic_class])
             box3d_centers[i, :] = box3d_center
