@@ -37,7 +37,7 @@ sys.path.append(os.path.join(ROOT_DIR, 'pointnet2'))
 sys.path.append(os.path.join(ROOT_DIR, 'models'))
 from pytorch_utils import BNMomentumScheduler
 # from tf_visualizer import Visualizer as TfVisualizer
-# import wandb
+import wandb
 from ap_helper import APCalculator, parse_predictions, parse_groundtruths
 
 parser = argparse.ArgumentParser()
@@ -225,8 +225,7 @@ CONFIG_DICT = {'remove_empty_box':False, 'use_3d_nms':True,
 
 # ------------------------------------------------------------------------- GLOBAL CONFIG END
 
-def train_log(loss_dict, ct):
-    # Where the magic happens
+def train_log(loss_dict, ct): # Where the magic happens
     wandb.log(loss_dict, step=ct)
     print(f"Loss after " + str(ct).zfill(5) + f" examples: {loss_dict['loss']:.3f}")
 
@@ -261,11 +260,10 @@ def train_one_epoch():
         batch_interval = 10
         if (batch_idx+1) % batch_interval == 0:
             log_string(' ---- batch: %03d ----' % (batch_idx+1))
-        #     loss_dict = {key: stat_dict[key] / batch_interval for key in stat_dict}
-        #     loss_dict['epoch'] = EPOCH_CNT # TODO: not sure if this is correct
-        #     example_ct = (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE
-        #     train_log(loss_dict, example_ct)
-            # wandb.log({key:stat_dict[key]/batch_interval for key in stat_dict})
+            loss_dict = {key: stat_dict[key] / batch_interval for key in stat_dict}
+            loss_dict['epoch'] = EPOCH_CNT # TODO: not sure if this is correct
+            example_ct = (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE
+            train_log(loss_dict, example_ct)
             # TRAIN_VISUALIZER.log_scalars({key:stat_dict[key]/batch_interval for key in stat_dict},
             #     (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE)
             for key in sorted(stat_dict.keys()):
@@ -320,7 +318,8 @@ def evaluate_one_epoch():
     metrics_dict = ap_calculator.compute_metrics()
     for key in metrics_dict:
         log_string('eval %s: %f'%(key, metrics_dict[key]))
-    # wandb.log(metrics_dict)
+    
+    wandb.log(metrics_dict)
     mean_loss = stat_dict['loss']/float(batch_idx+1)
     return mean_loss
 
@@ -333,31 +332,31 @@ def train(start_epoch):
 
     # hyperparameters = get_hyperparameters() # TODO: implement this
     # tell wandb to get started
-    # with wandb.init(project=FLAGS.model + "-model", config=hyperparameters):
+    with wandb.init(project=FLAGS.model + "-model", config=hyperparameters, entity="tamariucai"):
       # access all HPs through wandb.config, so logging matches execution!
-      # wandb.watch(net)
-    for epoch in range(start_epoch, MAX_EPOCH):
-     EPOCH_CNT = epoch
-     log_string('**** EPOCH %03d ****' % (epoch))
-     log_string('Current learning rate: %f'%(get_current_lr(epoch)))
-     log_string('Current BN decay momentum: %f'%(bnm_scheduler.lmbd(bnm_scheduler.last_epoch)))
-     log_string(str(datetime.now()))
-        # Reset numpy seed.
-        # REF: https://github.com/pytorch/pytorch/issues/5059
-     np.random.seed()
-     train_one_epoch()
-     if EPOCH_CNT == 0 or EPOCH_CNT % 10 == 9: # Eval every 10 epochs
-        loss = evaluate_one_epoch()
-        # Save checkpoint
-        save_dict = {'epoch': epoch+1, # after training one epoch, the start_epoch should be epoch+1
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'loss': loss,
-                    }
-        try: # with nn.DataParallel() the net is added as a submodule of DataParallel
-            save_dict['model_state_dict'] = net.module.state_dict()
-        except:
-            save_dict['model_state_dict'] = net.state_dict()
-        torch.save(save_dict, os.path.join(LOG_DIR, 'checkpoint.tar'))
+      wandb.watch(net)
+      for epoch in range(start_epoch, MAX_EPOCH):
+        EPOCH_CNT = epoch
+        log_string('**** EPOCH %03d ****' % (epoch))
+        log_string('Current learning rate: %f'%(get_current_lr(epoch)))
+        log_string('Current BN decay momentum: %f'%(bnm_scheduler.lmbd(bnm_scheduler.last_epoch)))
+        log_string(str(datetime.now()))
+	# Reset numpy seed.
+	# REF: https://github.com/pytorch/pytorch/issues/5059
+        np.random.seed()
+        train_one_epoch()
+        if EPOCH_CNT == 0 or EPOCH_CNT % 10 == 9: # Eval every 10 epochs
+          loss = evaluate_one_epoch()
+	# Save checkpoint
+	save_dict = {'epoch': epoch+1, # after training one epoch, the start_epoch should be epoch+1
+	             'optimizer_state_dict': optimizer.state_dict(),
+	             'loss': loss,
+	            }
+	try: # with nn.DataParallel() the net is added as a submodule of DataParallel
+	    save_dict['model_state_dict'] = net.module.state_dict()
+	except:
+	    save_dict['model_state_dict'] = net.state_dict()
+	torch.save(save_dict, os.path.join(LOG_DIR, 'checkpoint.tar'))
 
 if __name__=='__main__':
     train(start_epoch)
