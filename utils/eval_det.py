@@ -99,7 +99,6 @@ def eval_det_cls(
         use_07_metric: bool, if True use VOC07 11 point method
         get_iou_func: function handle for get_iou_func(box1, box2)
         classname: int
-
     Returns:
         rec: numpy array of length nd
         prec: numpy array of length nd

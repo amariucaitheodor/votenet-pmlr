@@ -6,6 +6,8 @@
 
 """ Dataset for 3D object detection on Apple data (with support of vote supervision).
 """
+import os
+import sys
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(BASE_DIR)
@@ -13,8 +15,8 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 from model_util_apple import AppleDatasetConfig
 import apple_utils
 import pc_util
-import os
-import sys
+
+
 import numpy as np
 from torch.utils.data import Dataset
 

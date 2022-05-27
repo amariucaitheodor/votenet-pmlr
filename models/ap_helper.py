@@ -13,7 +13,7 @@ import torch
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
-from eval_det import eval_det_cls, eval_det_multiprocessing
+from eval_det import eval_det_cls #, eval_det_multiprocessing
 from eval_det import get_iou_obb
 from nms import nms_2d_faster, nms_3d_faster, nms_3d_faster_samecls
 from box_util import get_3d_box
@@ -240,20 +240,14 @@ def parse_groundtruths(end_points, config_dict):
 
 
 class APCalculator(object):
-    """ Calculating Average Precision """
+    ''' Calculating Average Precision '''
 
-    def __init__(
-            self,
-            ap_iou_thresh=0.25,
-            class2type_map=None,
-    ):
+    def __init__(self, ap_iou_thresh=0.25, class2type_map=None):
         """
         Args:
             ap_iou_thresh: float between 0 and 1.0
                 IoU threshold to judge whether a prediction is positive.
-            class2type_map: dict
-                int: str
-                e.g. {0: 'cabinet', 1: '', ...}
+            class2type_map: [optional] dict {class_int:class_name}
         """
         self.ap_iou_thresh = ap_iou_thresh
         self.class2type_map = class2type_map
@@ -264,14 +258,8 @@ class APCalculator(object):
 
         self.reset()
 
-    def step(
-            self,
-            batch_pred,
-            batch_gt,
-    ):
-        """Accumulate one batch of prediction and groundtruth.
-            self.gt_map_cls[idx]: a list of (int, np.array (8, 3))
-            self.gt_map_cls[idx]: a list of (int, np.array (8, 3))
+    def step(self, batch_pred_map_cls, batch_gt_map_cls):
+        """ Accumulate one batch of prediction and groundtruth.
 
         Args:
             batch_pred_map_cls: a list of lists [[(pred_cls, pred_box_params, score),...],...]
@@ -279,30 +267,24 @@ class APCalculator(object):
                 should have the same length with batch_pred_map_cls (batch_size)
         """
 
-        bsize = len(batch_pred)
-        assert bsize == len(batch_gt)
+        bsize = len(batch_pred_map_cls)
+        assert (bsize == len(batch_gt_map_cls))
         for i in range(bsize):
             self.gt_map_cls[self.scan_cnt] = batch_gt_map_cls[i]
             self.pred_map_cls[self.scan_cnt] = batch_pred_map_cls[i]
             self.scan_cnt += 1
 
     def compute_metrics(self):
-        """Use accumulated predictions and groundtruths to compute Average Precision.
-        # 1. calculate by-category precision, recall with multiprocessing mode
-            each process for each category.
-
-        Args:
-
-        Returns:
-            ret_dict: dict
-                mAP: float (average AP over all categories)
-                AR: float (average recall over all categories)
+        """ Use accumulated predictions and groundtruths to compute Average Precision.
         """
-        pred = {}
-        gt = {}
-
-        for img_id in pred_all.keys():
-            for classname, bbox, score in pred_all[img_id]:
+        # rec, prec, ap = eval_det_multiprocessing(self.pred_map_cls, self.gt_map_cls, ovthresh=self.ap_iou_thresh,
+        #                                          get_iou_func=get_iou_obb)
+        ovthresh = self.ap_iou_thresh
+        get_iou_func = get_iou_obb
+        pred = {}  # map {classname: pred}
+        gt = {}  # map {classname: gt}
+        for img_id in self.pred_map_cls.keys():
+            for classname, bbox, score in self.pred_map_cls[img_id]:
                 if classname not in pred: pred[classname] = {}
                 if img_id not in pred[classname]:
                     pred[classname][img_id] = []
@@ -310,21 +292,18 @@ class APCalculator(object):
                 if img_id not in gt[classname]:
                     gt[classname][img_id] = []
                 pred[classname][img_id].append((bbox, score))
-
-        for img_id in gt_all.keys():
-            for classname, bbox in gt_all[img_id]:
+        for img_id in self.gt_map_cls.keys():
+            for classname, bbox in self.gt_map_cls[img_id]:
                 if classname not in gt: gt[classname] = {}
                 if img_id not in gt[classname]:
                     gt[classname][img_id] = []
                 gt[classname][img_id].append(bbox)
-
         rec = {}
         prec = {}
         ap = {}
         for classname in gt.keys():
             print('Computing AP for class: ', classname)
-            rec[classname], prec[classname], ap[classname] = eval_det_cls(pred[classname], gt[classname], ovthresh,
-                                                                          use_07_metric, get_iou_func)
+            rec[classname], prec[classname], ap[classname] = eval_det_cls(pred[classname], gt[classname], ovthresh, use_07_metric, get_iou_func)
             print(classname, ap[classname])
 
         ret_dict = {}
