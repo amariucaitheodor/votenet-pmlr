@@ -332,7 +332,7 @@ def train(start_epoch):
 
     # hyperparameters = get_hyperparameters() # TODO: implement this
     # tell wandb to get started
-    with wandb.init(project=FLAGS.model + "-model", entity="tamariucai"):
+    with wandb.init(project="votenet-model-apple", entity="pmlr-votenet"):
       # access all HPs through wandb.config, so logging matches execution!
       wandb.watch(net)
       for epoch in range(start_epoch, MAX_EPOCH):

@@ -15,7 +15,7 @@ from nn_distance import nn_distance, huber_loss
 
 FAR_THRESHOLD = 0.6
 NEAR_THRESHOLD = 0.3
-GT_VOTE_FACTOR = 3 # number of GT votes per point
+GT_VOTE_FACTOR = 1 # number of GT votes per point
 OBJECTNESS_CLS_WEIGHTS = [0.2,0.8] # put larger weights on positive objectness
 
 def compute_vote_loss(end_points):
@@ -44,16 +44,18 @@ def compute_vote_loss(end_points):
     num_seed = end_points['seed_xyz'].shape[1] # B,num_seed,3
     vote_xyz = end_points['vote_xyz'] # B,num_seed*vote_factor,3
     seed_inds = end_points['seed_inds'].long() # B,num_seed in [0,num_points-1]
-
     # Get groundtruth votes for the seed points
     # vote_label_mask: Use gather to select B,num_seed from B,num_point
     #   non-object point has no GT vote mask = 0, object point has mask = 1
-    # vote_label: Use gather to select B,num_seed,9 from B,num_point,9
-    #   with inds in shape B,num_seed,9 and 9 = GT_VOTE_FACTOR * 3
+    # vote_label: Use gather to select B,num_seed,3 from B,num_point,3
+    #   with inds in shape B,num_seed,3 and 3 = GT_VOTE_FACTOR * 3
     seed_gt_votes_mask = torch.gather(end_points['vote_label_mask'], 1, seed_inds)
     seed_inds_expand = seed_inds.view(batch_size,num_seed,1).repeat(1,1,3*GT_VOTE_FACTOR)
     seed_gt_votes = torch.gather(end_points['vote_label'], 1, seed_inds_expand)
-    seed_gt_votes += end_points['seed_xyz'].repeat(1,1,3)
+    #print(seed_gt_votes.size())
+    #print(end_points['seed_xyz'].size())
+    seed_gt_votes += vote_xyz
+    #print(seed_gt_votes.size())
 
     # Compute the min of min of distance
     vote_xyz_reshape = vote_xyz.view(batch_size*num_seed, -1, 3) # from B,num_seed*vote_factor,3 to B*num_seed,vote_factor,3
@@ -248,3 +250,5 @@ def get_loss(end_points, config):
     end_points['obj_acc'] = obj_acc
 
     return loss, end_points
+
+
