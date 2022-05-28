@@ -13,7 +13,7 @@ import torch
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
-# from eval_det import eval_det_cls, eval_det_multiprocessing
+from eval_det import eval_det_multiprocessing
 from eval_det import get_iou_obb
 from nms import nms_2d_faster, nms_3d_faster, nms_3d_faster_samecls
 from box_util import get_3d_box
