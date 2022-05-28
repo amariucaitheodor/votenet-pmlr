@@ -102,7 +102,7 @@ class AppleDetectionVotesDataset(Dataset):
             angle_class, angle_residual = DC.angle2class(bbox[6])
             # NOTE: The mean size stored in size2class is of full length of box edges,
             # while in sunrgbd_data.py data dumping we dumped *half* length l,w,h.. so have to time it by 2 here
-            box3d_size = bbox[3:6] * 2
+            box3d_size = bbox[3:6] # * 2
             size_class, size_residual = DC.size2class(
                 box3d_size, DC.class2type[semantic_class])
             box3d_centers[i, :] = box3d_center
