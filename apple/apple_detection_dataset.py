@@ -115,7 +115,9 @@ class AppleDetectionVotesDataset(Dataset):
         target_bboxes = np.zeros((MAX_NUM_OBJ, 6))
         for i in range(bboxes.shape[0]):
             bbox = bboxes[i]
+
             corners_3d = sunrgbd_utils.my_compute_box_3d(bbox[0:3], bbox[3:6], bbox[6])
+
             # compute axis aligned box
             xmin = np.min(corners_3d[:, 0])
             ymin = np.min(corners_3d[:, 1])
@@ -127,8 +129,11 @@ class AppleDetectionVotesDataset(Dataset):
                 [(xmin+xmax)/2, (ymin+ymax)/2, (zmin+zmax)/2, xmax-xmin, ymax-ymin, zmax-zmin])
             target_bboxes[i, :] = target_bbox
 
-        point_cloud, choices = pc_util.random_sampling(
-            point_cloud, self.num_points, return_choices=True)
+        # point_cloud, choices = pc_util.random_sampling(
+        #     point_cloud, self.num_points, return_choices=True)
+
+        choices = pc_util.down_sample(point_cloud, voxel_sz=0.06)
+        point_cloud = point_cloud[choices, :]
         point_votes_mask = point_votes[choices, 0]
         point_votes = point_votes[choices, 1:]
 
