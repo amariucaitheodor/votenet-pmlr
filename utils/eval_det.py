@@ -26,8 +26,8 @@ import numpy as np
 import time
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-from box_util import box3d_iou
-from metric_util import calc_iou  # axis-aligned 3D box IoU
+# from box_util import box3d_iou
+from metric_util import calc_iou, box3d_iou  # axis-aligned 3D box IoU
 
 
 def voc_ap(rec, prec, use_07_metric=False):
@@ -74,8 +74,7 @@ def get_iou(bb1, bb2):
 
 
 def get_iou_obb(bb1, bb2):
-    iou3d, iou2d = box3d_iou(bb1, bb2)
-    return iou3d
+    return box3d_iou(bb1, bb2)
 
 
 def get_iou_main(get_iou_func, args):

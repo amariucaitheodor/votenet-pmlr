@@ -95,98 +95,6 @@ def is_clockwise(p):
     y = p[:, 1]
     return np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)) > 0
 
-
-def box3d_iou(corners1, corners2):
-    ''' Compute 3D bounding box IoU.
-
-    Input:
-        corners1: numpy array (8,3), assume up direction is negative Y
-        corners2: numpy array (8,3), assume up direction is negative Y
-    Output:
-        iou: 3D bounding box IoU
-        iou_2d: bird's eye view 2D bounding box IoU
-
-    '''
-    # corner points are in counter clockwise order
-    rect1 = [(corners1[i, 0], corners1[i, 1]) for i in range(3, -1, -1)]
-    rect2 = [(corners2[i, 0], corners2[i, 1]) for i in range(3, -1, -1)]
-    area1 = poly_area(np.array(rect1)[:, 0], np.array(rect1)[:, 1])
-    area2 = poly_area(np.array(rect2)[:, 0], np.array(rect2)[:, 1])
-    inter, inter_area = convex_hull_intersection(rect1, rect2)
-    iou_2d = inter_area / (area1 + area2 - inter_area)
-    ymax = min(corners1[:, 2].max(), corners2[:, 2].max())
-    ymin = max(corners1[:, 2].min(), corners2[:, 2].min())
-    inter_vol = inter_area * max(0.0, ymax - ymin)
-    vol1 = box3d_vol(corners1)
-    vol2 = box3d_vol(corners2)
-    iou = inter_vol / (vol1 + vol2 - inter_vol)
-    return iou
-
-
-def get_iou(bb1, bb2):
-    """
-    Calculate the Intersection over Union (IoU) of two 2D bounding boxes.
-
-    Parameters
-    ----------
-    bb1 : dict
-        Keys: {'x1', 'x2', 'y1', 'y2'}
-        The (x1, y1) position is at the top left corner,
-        the (x2, y2) position is at the bottom right corner
-    bb2 : dict
-        Keys: {'x1', 'x2', 'y1', 'y2'}
-        The (x, y) position is at the top left corner,
-        the (x2, y2) position is at the bottom right corner
-
-    Returns
-    -------
-    float
-        in [0, 1]
-    """
-    assert bb1['x1'] < bb1['x2']
-    assert bb1['y1'] < bb1['y2']
-    assert bb2['x1'] < bb2['x2']
-    assert bb2['y1'] < bb2['y2']
-
-    # determine the coordinates of the intersection rectangle
-    x_left = max(bb1['x1'], bb2['x1'])
-    y_top = max(bb1['y1'], bb2['y1'])
-    x_right = min(bb1['x2'], bb2['x2'])
-    y_bottom = min(bb1['y2'], bb2['y2'])
-
-    if x_right < x_left or y_bottom < y_top:
-        return 0.0
-
-    # The intersection of two axis-aligned bounding boxes is always an
-    # axis-aligned bounding box
-    intersection_area = (x_right - x_left) * (y_bottom - y_top)
-
-    # compute the area of both AABBs
-    bb1_area = (bb1['x2'] - bb1['x1']) * (bb1['y2'] - bb1['y1'])
-    bb2_area = (bb2['x2'] - bb2['x1']) * (bb2['y2'] - bb2['y1'])
-
-    # compute the intersection over union by taking the intersection
-    # area and dividing it by the sum of prediction + ground-truth
-    # areas - the interesection area
-    iou = intersection_area / float(bb1_area + bb2_area - intersection_area)
-    assert iou >= 0.0
-    assert iou <= 1.0
-    return iou
-
-
-def box2d_iou(box1, box2):
-    ''' Compute 2D bounding box IoU.
-
-    Input:
-        box1: tuple of (xmin,ymin,xmax,ymax)
-        box2: tuple of (xmin,ymin,xmax,ymax)
-    Output:
-        iou: 2D IoU scalar
-    '''
-    return get_iou({'x1': box1[0], 'y1': box1[1], 'x2': box1[2], 'y2': box1[3]}, \
-                   {'x1': box2[0], 'y1': box2[1], 'x2': box2[2], 'y2': box2[3]})
-
-
 # -----------------------------------------------------------
 # Convert from box parameters to 
 # -----------------------------------------------------------
@@ -223,9 +131,9 @@ def get_3d_box(box_size, heading_angle, center):
     '''
     R = roty(heading_angle)
     l, w, h = box_size
-    x_corners = [l / 2, l / 2, -l / 2, -l / 2, l / 2, l / 2, -l / 2, -l / 2];
-    y_corners = [h / 2, h / 2, h / 2, h / 2, -h / 2, -h / 2, -h / 2, -h / 2];
-    z_corners = [w / 2, -w / 2, -w / 2, w / 2, w / 2, -w / 2, -w / 2, w / 2];
+    x_corners = [l / 2, l / 2, -l / 2, -l / 2, l / 2, l / 2, -l / 2, -l / 2]
+    y_corners = [h / 2, h / 2, h / 2, h / 2, -h / 2, -h / 2, -h / 2, -h / 2]
+    z_corners = [w / 2, -w / 2, -w / 2, w / 2, w / 2, -w / 2, -w / 2, w / 2]
     corners_3d = np.dot(R, np.vstack([x_corners, y_corners, z_corners]))
     corners_3d[0, :] = corners_3d[0, :] + center[0];
     corners_3d[1, :] = corners_3d[1, :] + center[1];
