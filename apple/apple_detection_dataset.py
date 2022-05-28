@@ -30,7 +30,7 @@ class AppleDetectionVotesDataset(Dataset):
     def __init__(self, split_set='train', num_points=20000,
                  use_height=False, scan_idx_list=None):
 
-        assert(num_points <= 50000)
+        # assert(num_points <= 50000)
         self.data_path = os.path.join(
             ROOT_DIR, f'apple/{"Training" if split_set=="train" else "Validation"}/')
 

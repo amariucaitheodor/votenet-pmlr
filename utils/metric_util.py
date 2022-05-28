@@ -14,6 +14,7 @@ import torch
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
+from box_util import poly_area, convex_hull_intersection, box3d_vol
 import numpy as np
 
 # Mesh IO
