@@ -13,9 +13,9 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(BASE_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 from model_util_apple import AppleDatasetConfig
-import apple_utils
+from apple_guys_utils import box_utils
 import pc_util
-
+import sunrgbd_utils
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -63,18 +63,18 @@ class AppleDetectionVotesDataset(Dataset):
             max_gt_bboxes: unused
         """
         scan_name = self.scan_names[idx]
-        point_cloud = np.load(os.path.join(self.data_path + "/data/", scan_name)+'_pc.npy') #['pc']  # Nx6
-        label = np.load(os.path.join(self.data_path + "/label/", scan_name)+'_bbox.npy', allow_pickle=True).item()  # K,8
+        point_cloud = np.load(os.path.join(self.data_path + "/data/", scan_name)+'_pc.npy') #['pc']  # Nx3, NOT Nx6 like sunrgbd
+        label = np.load(os.path.join(self.data_path + "/label/", scan_name)+'_bbox.npy', allow_pickle=True).item()
 
-        bboxes = label["bboxes"]
-        uids = label["types"]
-        sem_labels = np.array([DC.type2class[uid] for uid in uids]).reshape((-1, 1))
-        bboxes = np.concatenate([bboxes, sem_labels], axis=-1)
-        bboxes[:, 3:6] += 0.01# make boxes a little bit larger to include more points
-        gt_boxes = apple_utils.boxes_to_corners_3d(bboxes)
-        point_votes = apple_utils.get_votes(point_cloud, gt_boxes) # Nx4
+        bboxes = label["bboxes"] # Kx7
+        bboxes[:, 3:6] += 0.01 # make boxes a little bit larger to include more points
+        gt_boxes = box_utils.boxes_to_corners_3d(bboxes) # K,8
+        point_votes = get_votes(point_cloud, gt_boxes) # Nx4
 
-        point_cloud = point_cloud[:, 0:3]
+        uids = label["types"] # Kx1
+        sem_labels = np.array([DC.type2class[uid] for uid in uids]).reshape((-1, 1)) # Kx1
+
+        bboxes = np.c_[bboxes, sem_labels]
 
         if self.use_height:
             floor_height = np.percentile(point_cloud[:, 2], 0.99)
@@ -115,8 +115,7 @@ class AppleDetectionVotesDataset(Dataset):
         target_bboxes = np.zeros((MAX_NUM_OBJ, 6))
         for i in range(bboxes.shape[0]):
             bbox = bboxes[i]
-            corners_3d = apple_utils.compute_box_3d(
-                bbox[0:3], bbox[3:6], bbox[6])
+            corners_3d = sunrgbd_utils.my_compute_box_3d(bbox[0:3], bbox[3:6], bbox[6])
             # compute axis aligned box
             xmin = np.min(corners_3d[:, 0])
             ymin = np.min(corners_3d[:, 1])
@@ -213,6 +212,30 @@ def get_sem_cls_statistics():
             sem_cls_cnt[sem_cls[j]] += 1
     print(sem_cls_cnt)
 
+
+def get_votes(points, gt_boxes):
+    """
+    Args:
+        points: (N, 3)
+        boxes: (m, 8, 3)
+    Returns:
+        votes: (N, 4)
+    """
+    n_point = points.shape[0]
+    point_votes = np.zeros((n_point, 4)).astype(np.float32)
+    for obj_id in range(gt_boxes.shape[0]):
+        tmp_box3d = np.expand_dims(gt_boxes[obj_id], 0)  # (8, 3)
+        # (n_point, 1)
+        mask_pts = box_utils.points_in_boxes(points[:, :3], tmp_box3d)
+        mask_pts = mask_pts.reshape((-1,))
+        point_votes[mask_pts, 0] = 1.0
+        obj_center = np.mean(tmp_box3d, axis=1)  # (1, 3)
+
+        # get votes
+        pc_roi = points[mask_pts, :3]
+        tmp_votes = obj_center - pc_roi
+        point_votes[mask_pts, 1:4] = tmp_votes
+    return point_votes
 
 if __name__ == '__main__':
     d = AppleDetectionVotesDataset(use_height=True)
