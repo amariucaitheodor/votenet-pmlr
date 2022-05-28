@@ -280,23 +280,23 @@ class APCalculator(object):
         rec, prec, ap = eval_det_multiprocessing(self.pred_map_cls, self.gt_map_cls, ovthresh=self.ap_iou_thresh,
                                                  get_iou_func=get_iou_obb)
 
-        pred = {}  # map {classname: pred}
-        gt = {}  # map {classname: gt}
-        for img_id in self.pred_map_cls.keys():
-            for classname, bbox, score in self.pred_map_cls[img_id]:
-                if classname not in pred: pred[classname] = {}
-                if img_id not in pred[classname]:
-                    pred[classname][img_id] = []
-                if classname not in gt: gt[classname] = {}
-                if img_id not in gt[classname]:
-                    gt[classname][img_id] = []
-                pred[classname][img_id].append((bbox, score))
-        for img_id in self.gt_map_cls.keys():
-            for classname, bbox in self.gt_map_cls[img_id]:
-                if classname not in gt: gt[classname] = {}
-                if img_id not in gt[classname]:
-                    gt[classname][img_id] = []
-                gt[classname][img_id].append(bbox)
+        # pred = {}  # map {classname: pred}
+        # gt = {}  # map {classname: gt}
+        # for img_id in self.pred_map_cls.keys():
+        #     for classname, bbox, score in self.pred_map_cls[img_id]:
+        #         if classname not in pred: pred[classname] = {}
+        #         if img_id not in pred[classname]:
+        #             pred[classname][img_id] = []
+        #         if classname not in gt: gt[classname] = {}
+        #         if img_id not in gt[classname]:
+        #             gt[classname][img_id] = []
+        #         pred[classname][img_id].append((bbox, score))
+        # for img_id in self.gt_map_cls.keys():
+        #     for classname, bbox in self.gt_map_cls[img_id]:
+        #         if classname not in gt: gt[classname] = {}
+        #         if img_id not in gt[classname]:
+        #             gt[classname][img_id] = []
+        #         gt[classname][img_id].append(bbox)
         ret_dict = {}
         for key in sorted(ap.keys()):
             clsname = self.class2type_map[key] if self.class2type_map else str(key)
