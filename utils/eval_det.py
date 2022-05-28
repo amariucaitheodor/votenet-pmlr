@@ -28,7 +28,7 @@ import time
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # from box_util import box3d_iou
 from metric_util import calc_iou, box3d_iou  # axis-aligned 3D box IoU
-
+from apple.apple_guys_utils.box_utils import boxes_to_corners_3d
 
 def voc_ap(rec, prec, use_07_metric=False):
     """ap = voc_ap(rec, prec, [use_07_metric])
@@ -154,7 +154,10 @@ def eval_det_cls(
         if BBGT.size > 0:
             # compute overlaps
             for j in range(BBGT.shape[0]):
-                iou = get_iou_main(get_iou_func, (bb, BBGT[j,...]))
+                # alternatively cast bounding boxes to points
+                # bb = boxes_to_corners_3d(bb)
+                # BBGT = boxes_to_corners_3d(BBGT[j, ...])
+                iou = get_iou_func(bb, BBGT[j, ...])
                 if iou > ovmax:
                     ovmax = iou
                     jmax = j

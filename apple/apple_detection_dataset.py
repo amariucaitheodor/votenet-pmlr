@@ -129,11 +129,11 @@ class AppleDetectionVotesDataset(Dataset):
                 [(xmin+xmax)/2, (ymin+ymax)/2, (zmin+zmax)/2, xmax-xmin, ymax-ymin, zmax-zmin])
             target_bboxes[i, :] = target_bbox
 
-        # point_cloud, choices = pc_util.random_sampling(
-        #     point_cloud, self.num_points, return_choices=True)
+        point_cloud, choices = pc_util.random_sampling(
+            point_cloud, self.num_points, return_choices=True)
 
-        choices = pc_util.down_sample(point_cloud, voxel_sz=0.06)
-        point_cloud = point_cloud[choices, :]
+        # choices = pc_util.down_sample(point_cloud, voxel_sz=0.06)
+        # point_cloud = point_cloud[choices, :]
         point_votes_mask = point_votes[choices, 0]
         point_votes = point_votes[choices, 1:]
 

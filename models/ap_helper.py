@@ -14,9 +14,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 from eval_det import eval_det_multiprocessing
-from eval_det import get_iou_obb
+from eval_det import get_iou_obb, eval_det_cls
 from nms import nms_2d_faster, nms_3d_faster, nms_3d_faster_samecls
 from box_util import get_3d_box
+from metric_util import box3d_iou
 
 sys.path.append(os.path.join(ROOT_DIR, 'sunrgbd'))
 from sunrgbd_utils import extract_pc_in_box3d
@@ -266,7 +267,7 @@ class APCalculator(object):
             batch_gt_map_cls: a list of lists [[(gt_cls, gt_box_params),...],...]
                 should have the same length with batch_pred_map_cls (batch_size)
         """
-
+        self.iou_func = box3d_iou
         bsize = len(batch_pred_map_cls)
         assert (bsize == len(batch_gt_map_cls))
         for i in range(bsize):
@@ -277,26 +278,35 @@ class APCalculator(object):
     def compute_metrics(self):
         """ Use accumulated predictions and groundtruths to compute Average Precision.
         """
-        rec, prec, ap = eval_det_multiprocessing(self.pred_map_cls, self.gt_map_cls, ovthresh=self.ap_iou_thresh,
-                                                 get_iou_func=get_iou_obb)
+        # rec, prec, ap = eval_det_multiprocessing(self.pred_map_cls, self.gt_map_cls, ovthresh=self.ap_iou_thresh,
+                                                 # get_iou_func=get_iou_obb)
 
-        # pred = {}  # map {classname: pred}
-        # gt = {}  # map {classname: gt}
-        # for img_id in self.pred_map_cls.keys():
-        #     for classname, bbox, score in self.pred_map_cls[img_id]:
-        #         if classname not in pred: pred[classname] = {}
-        #         if img_id not in pred[classname]:
-        #             pred[classname][img_id] = []
-        #         if classname not in gt: gt[classname] = {}
-        #         if img_id not in gt[classname]:
-        #             gt[classname][img_id] = []
-        #         pred[classname][img_id].append((bbox, score))
-        # for img_id in self.gt_map_cls.keys():
-        #     for classname, bbox in self.gt_map_cls[img_id]:
-        #         if classname not in gt: gt[classname] = {}
-        #         if img_id not in gt[classname]:
-        #             gt[classname][img_id] = []
-        #         gt[classname][img_id].append(bbox)
+        pred = {}  # map {classname: pred}
+        gt = {}  # map {classname: gt}
+        for img_id in self.pred_map_cls.keys():
+            for classname, bbox, score in self.pred_map_cls[img_id]:
+                if classname not in pred: pred[classname] = {}
+                if img_id not in pred[classname]:
+                    pred[classname][img_id] = []
+                if classname not in gt: gt[classname] = {}
+                if img_id not in gt[classname]:
+                    gt[classname][img_id] = []
+                pred[classname][img_id].append((bbox, score))
+        for img_id in self.gt_map_cls.keys():
+            for classname, bbox in self.gt_map_cls[img_id]:
+                if classname not in gt: gt[classname] = {}
+                if img_id not in gt[classname]:
+                    gt[classname][img_id] = []
+                gt[classname][img_id].append(bbox)
+        rec = {}
+        prec = {}
+        ap = {}
+        for classname in gt.keys():
+            print('Computing AP for class: ', classname)
+            rec[classname], prec[classname], ap[classname] = eval_det_cls(pred[classname], gt[classname], ovthresh=self.ap_iou_thresh,
+                                                                          use_07_metric=False, get_iou_func=self.iou_func)
+            print(classname, ap[classname])
+
         ret_dict = {}
         for key in sorted(ap.keys()):
             clsname = self.class2type_map[key] if self.class2type_map else str(key)
