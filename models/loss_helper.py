@@ -16,7 +16,7 @@ from nn_distance import nn_distance, huber_loss
 
 FAR_THRESHOLD = 0.6
 NEAR_THRESHOLD = 0.3
-GT_VOTE_FACTOR = 3  # number of GT votes per point
+GT_VOTE_FACTOR = 1  # number of GT votes per point
 OBJECTNESS_CLS_WEIGHTS = [0.2, 0.8]  # put larger weights on positive objectness
 
 
@@ -56,7 +56,7 @@ def compute_vote_loss(end_points):
     seed_gt_votes = torch.gather(end_points['vote_label'], 1, seed_inds_expand)
     # print(seed_gt_votes.size())
     # print(end_points['seed_xyz'].size())
-    seed_gt_votes += end_points['seed_xyz'].repeat(1,1,3)
+    seed_gt_votes += end_points['seed_xyz']
     # print(seed_gt_votes.size())
 
     # Compute the min of min of distance
