@@ -22,7 +22,7 @@ from metric_util import box3d_iou
 sys.path.append(os.path.join(ROOT_DIR, 'sunrgbd'))
 sys.path.append(os.path.join(ROOT_DIR, 'apple/apple_guys_utils'))
 # from sunrgbd_utils import extract_pc_in_box3d
-import box_utils
+from box_utils import points_in_boxes
 
 
 def flip_axis_to_camera(pc):
