@@ -22,7 +22,8 @@ from metric_util import box3d_iou
 sys.path.append(os.path.join(ROOT_DIR, 'sunrgbd'))
 sys.path.append(os.path.join(ROOT_DIR, 'apple/apple_guys_utils'))
 # from sunrgbd_utils import extract_pc_in_box3d
-from box_utils import points_in_boxes
+import box_utils
+import rotation
 
 
 def flip_axis_to_camera(pc):
@@ -93,7 +94,9 @@ def parse_predictions(end_points, config_dict):
                 pred_heading_class[i, j].detach().cpu().numpy(), pred_heading_residual[i, j].detach().cpu().numpy())
             box_size = config_dict['dataset_config'].class2size( \
                 int(pred_size_class[i, j].detach().cpu().numpy()), pred_size_residual[i, j].detach().cpu().numpy())
-            corners_3d_upright_camera = get_3d_box(box_size, heading_angle, pred_center_upright_camera[i, j, :])
+            R = rotation.eulerAnglesToRotationMatrix([0, -1 * heading_angle, 0])
+            corners_3d_upright_camera = box_utils.compute_box_3d(box_size, pred_center_upright_camera[i, j, :], R)
+            # corners_3d_upright_camera = get_3d_box(box_size, heading_angle, pred_center_upright_camera[i, j, :])
             pred_corners_3d_upright_camera[i, j] = corners_3d_upright_camera
 
     K = pred_center.shape[1]  # K==num_proposal
@@ -108,7 +111,7 @@ def parse_predictions(end_points, config_dict):
             # for j in range(K):
             box3d = pred_corners_3d_upright_camera[i, :, :, :]  # (K,8,3)
             box3d = flip_axis_to_depth(box3d)
-            pc_in_box_mask = points_in_boxes(pc, box3d) # N x K
+            pc_in_box_mask = box_utils.points_in_boxes(pc, box3d) # N x K
             pc_in_box = pc_in_box_mask.sum(axis=0) # (K,)
             # if len(remaining) < 10:  # in Apple paper they cite 10
                 # nonempty_box_mask[i, j] = 0
@@ -232,7 +235,9 @@ def parse_groundtruths(end_points, config_dict):
                                                                           i, j].detach().cpu().numpy())
             box_size = config_dict['dataset_config'].class2size(int(size_class_label[i, j].detach().cpu().numpy()),
                                                                 size_residual_label[i, j].detach().cpu().numpy())
-            corners_3d_upright_camera = get_3d_box(box_size, heading_angle, gt_center_upright_camera[i, j, :])
+            R = rotation.eulerAnglesToRotationMatrix([0, -1 * heading_angle, 0])
+            corners_3d_upright_camera = box_utils.compute_box_3d(box_size, gt_center_upright_camera[i, j, :], R)
+            # corners_3d_upright_camera = get_3d_box(box_size, heading_angle, gt_center_upright_camera[i, j, :])
             gt_corners_3d_upright_camera[i, j] = corners_3d_upright_camera
 
     batch_gt_map_cls = []

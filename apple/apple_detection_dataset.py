@@ -13,7 +13,7 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(BASE_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 from model_util_apple import AppleDatasetConfig
-from apple_guys_utils import box_utils
+from apple_guys_utils import box_utils, rotation
 import pc_util
 import sunrgbd_utils
 from box_util import get_3d_box
@@ -115,8 +115,8 @@ class AppleDetectionVotesDataset(Dataset):
         target_bboxes = np.zeros((MAX_NUM_OBJ, 6))
         for i in range(bboxes.shape[0]):
             bbox = bboxes[i]
-
-            corners_3d = get_3d_box(bbox[0:3], bbox[6], bbox[3:6])
+            R = rotation.eulerAnglesToRotationMatrix([0, -1 * bbox[6], 0])
+            corners_3d = box_utils.compute_box_3d(bbox[3:6], bbox[0:3], R)
 
             # compute axis aligned box
             xmin = np.min(corners_3d[:, 0])
