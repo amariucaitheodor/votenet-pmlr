@@ -20,7 +20,9 @@ from box_util import get_3d_box
 from metric_util import box3d_iou
 
 sys.path.append(os.path.join(ROOT_DIR, 'sunrgbd'))
+sys.path.append(os.path.join(ROOT_DIR, 'apple/apple_guys_utils'))
 from sunrgbd_utils import extract_pc_in_box3d
+import box_utils
 
 
 def flip_axis_to_camera(pc):
@@ -103,12 +105,14 @@ def parse_predictions(end_points, config_dict):
         batch_pc = end_points['point_clouds'].cpu().numpy()[:, :, 0:3]  # B,N,3
         for i in range(bsize):
             pc = batch_pc[i, :, :]  # (N,3)
-            for j in range(K):
-                box3d = pred_corners_3d_upright_camera[i, j, :, :]  # (8,3)
-                box3d = flip_axis_to_depth(box3d)
-                pc_in_box, inds = extract_pc_in_box3d(pc, box3d)
-                if len(pc_in_box) < 5:
-                    nonempty_box_mask[i, j] = 0
+            # for j in range(K):
+            box3d = pred_corners_3d_upright_camera[i, :, :, :]  # (K,8,3)
+            box3d = flip_axis_to_depth(box3d)
+            pc_in_box_mask = points_in_boxes(pc, box3d) # N x K
+            pc_in_box = pc_in_box_mask.sum(axis=0) # (K,)
+            # if len(remaining) < 10:  # in Apple paper they cite 10
+                # nonempty_box_mask[i, j] = 0
+            nonempty_box_mask[i, :] = np.ma.less(pc_in_box, 10).data.astype(int)
         # -------------------------------------
 
     obj_logits = end_points['objectness_scores'].detach().cpu().numpy()
@@ -279,7 +283,7 @@ class APCalculator(object):
         """ Use accumulated predictions and groundtruths to compute Average Precision.
         """
         # rec, prec, ap = eval_det_multiprocessing(self.pred_map_cls, self.gt_map_cls, ovthresh=self.ap_iou_thresh,
-                                                 # get_iou_func=get_iou_obb)
+        # get_iou_func=get_iou_obb)
 
         pred = {}  # map {classname: pred}
         gt = {}  # map {classname: gt}
@@ -303,8 +307,10 @@ class APCalculator(object):
         ap = {}
         for classname in gt.keys():
             print('Computing AP for class: ', classname)
-            rec[classname], prec[classname], ap[classname] = eval_det_cls(pred[classname], gt[classname], ovthresh=self.ap_iou_thresh,
-                                                                          use_07_metric=False, get_iou_func=self.iou_func)
+            rec[classname], prec[classname], ap[classname] = eval_det_cls(pred[classname], gt[classname],
+                                                                          ovthresh=self.ap_iou_thresh,
+                                                                          use_07_metric=False,
+                                                                          get_iou_func=self.iou_func)
             print(classname, ap[classname])
 
         ret_dict = {}
