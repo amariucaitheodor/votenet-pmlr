@@ -116,7 +116,7 @@ class AppleDetectionVotesDataset(Dataset):
         for i in range(bboxes.shape[0]):
             bbox = bboxes[i]
 
-            corners_3d = get_3d_box(bbox[0:3], bbox[3:6], bbox[6])
+            corners_3d = get_3d_box(bbox[0:3], bbox[6], bbox[3:6])
 
             # compute axis aligned box
             xmin = np.min(corners_3d[:, 0])
