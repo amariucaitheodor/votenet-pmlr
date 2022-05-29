@@ -156,8 +156,8 @@ def eval_det_cls(
             # compute overlaps
             for j in range(BBGT.shape[0]):
                 # alternatively cast bounding boxes to points
-                bb = boxes_to_corners_3d(bb)
-                BBGT = boxes_to_corners_3d(BBGT[j, ...])
+                # bb = boxes_to_corners_3d(bb)
+                # BBGT = boxes_to_corners_3d(BBGT[j, ...])
                 iou = get_iou_func(bb, BBGT)
                 if iou > ovmax:
                     ovmax = iou
@@ -175,6 +175,7 @@ def eval_det_cls(
     fp = np.cumsum(fp)
     tp = np.cumsum(tp)
     rec = tp / float(npos + 1e-4)
+    print(f"TP: {tp} REC: {rec}")
     # avoid divide by zero in case the first detection matches a difficult
     # ground truth
     prec = tp / np.maximum(tp + fp, np.finfo(np.float64).eps)

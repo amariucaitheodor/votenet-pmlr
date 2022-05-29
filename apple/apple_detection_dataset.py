@@ -16,7 +16,7 @@ from model_util_apple import AppleDatasetConfig
 from apple_guys_utils import box_utils
 import pc_util
 import sunrgbd_utils
-
+from box_util import get_3d_box
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -116,7 +116,7 @@ class AppleDetectionVotesDataset(Dataset):
         for i in range(bboxes.shape[0]):
             bbox = bboxes[i]
 
-            corners_3d = sunrgbd_utils.my_compute_box_3d(bbox[0:3], bbox[3:6], bbox[6])
+            corners_3d = get_3d_box(bbox[0:3], bbox[3:6], bbox[6])
 
             # compute axis aligned box
             xmin = np.min(corners_3d[:, 0])
