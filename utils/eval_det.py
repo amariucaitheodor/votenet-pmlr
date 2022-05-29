@@ -158,7 +158,7 @@ def eval_det_cls(
                 # alternatively cast bounding boxes to points
                 # bb = boxes_to_corners_3d(bb)
                 # BBGT = boxes_to_corners_3d(BBGT[j, ...])
-                iou = get_iou_func(bb, BBGT)
+                iou = get_iou_func(bb, BBGT[j, ...])
                 if iou > ovmax:
                     ovmax = iou
                     jmax = j

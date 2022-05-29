@@ -76,7 +76,7 @@ def convex_hull_intersection(p1, p2):
     """
     inter_p = polygon_clip(p1, p2)
     if inter_p is not None:
-        hull_inter = scipy.spatial.ConvexHull(inter_p)
+        hull_inter = ConvexHull(inter_p)
         return inter_p, hull_inter.volume
     else:
         return None, 0.0
