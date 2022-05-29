@@ -30,6 +30,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 from metric_util import calc_iou, box3d_iou  # axis-aligned 3D box IoU
 from apple.apple_guys_utils.box_utils import boxes_to_corners_3d
 
+
 def voc_ap(rec, prec, use_07_metric=False):
     """ap = voc_ap(rec, prec, [use_07_metric])
     Compute VOC AP given precision and recall.
@@ -110,7 +111,7 @@ def eval_det_cls(
     # print(msg)
 
     # construct gt objects
-    class_recs = {} # {img_id: {'bbox': bbox list, 'det': matched list}}
+    class_recs = {}  # {img_id: {'bbox': bbox list, 'det': matched list}}
     npos = 0
     for img_id in gt.keys():
         bbox = np.array(gt[img_id])
@@ -127,12 +128,12 @@ def eval_det_cls(
     confidence = []
     BB = []
     for img_id in pred.keys():
-        for box,score in pred[img_id]:
+        for box, score in pred[img_id]:
             image_ids.append(img_id)
             confidence.append(score)
             BB.append(box)
     confidence = np.array(confidence)
-    BB = np.array(BB) # (nd,4 or 8,3 or 6)
+    BB = np.array(BB)  # (nd,4 or 8,3 or 6)
 
     # sort by confidence
     sorted_ind = np.argsort(-confidence)
@@ -145,9 +146,9 @@ def eval_det_cls(
     tp = np.zeros(nd)
     fp = np.zeros(nd)
     for d in range(nd):
-        #if d%100==0: print(d)
+        # if d%100==0: print(d)
         R = class_recs[image_ids[d]]
-        bb = BB[d,...].astype(float)
+        bb = BB[d, ...].astype(float)
         ovmax = -np.inf
         BBGT = R['bbox'].astype(float)
 
@@ -155,13 +156,13 @@ def eval_det_cls(
             # compute overlaps
             for j in range(BBGT.shape[0]):
                 # alternatively cast bounding boxes to points
-                # bb = boxes_to_corners_3d(bb)
-                # BBGT = boxes_to_corners_3d(BBGT[j, ...])
-                iou = get_iou_func(bb, BBGT[j, ...])
+                bb = boxes_to_corners_3d(bb)
+                BBGT = boxes_to_corners_3d(BBGT[j, ...])
+                iou = get_iou_func(bb, BBGT)
                 if iou > ovmax:
                     ovmax = iou
                     jmax = j
-        #print d, ovmax
+        # print d, ovmax
         if ovmax > ovthresh:
             if not R['det'][jmax]:
                 tp[d] = 1.

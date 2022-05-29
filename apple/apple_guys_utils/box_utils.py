@@ -4,7 +4,7 @@
 import numpy as np
 import scipy.spatial
 
-from .rotation import rotate_points_along_z
+from rotation import rotate_points_along_z
 
 
 def get_size(box):

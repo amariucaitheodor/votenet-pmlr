@@ -21,7 +21,7 @@ from metric_util import box3d_iou
 
 sys.path.append(os.path.join(ROOT_DIR, 'sunrgbd'))
 sys.path.append(os.path.join(ROOT_DIR, 'apple/apple_guys_utils'))
-from sunrgbd_utils import extract_pc_in_box3d
+# from sunrgbd_utils import extract_pc_in_box3d
 import box_utils
 
 
@@ -271,7 +271,7 @@ class APCalculator(object):
             batch_gt_map_cls: a list of lists [[(gt_cls, gt_box_params),...],...]
                 should have the same length with batch_pred_map_cls (batch_size)
         """
-        self.iou_func = box3d_iou
+        self.iou_func = box3d_iou # TODO: vezi sa bagi cu boxes to corners....
         bsize = len(batch_pred_map_cls)
         assert (bsize == len(batch_gt_map_cls))
         for i in range(bsize):
@@ -316,16 +316,16 @@ class APCalculator(object):
         ret_dict = {}
         for key in sorted(ap.keys()):
             clsname = self.class2type_map[key] if self.class2type_map else str(key)
-            ret_dict['%s Average Precision' % (clsname)] = ap[key]
+            ret_dict['%s Average Precision' % clsname] = ap[key]
         ret_dict['mAP'] = np.mean(list(ap.values()))
         rec_list = []
         for key in sorted(ap.keys()):
             clsname = self.class2type_map[key] if self.class2type_map else str(key)
             try:
-                ret_dict['%s Recall' % (clsname)] = rec[key][-1]
+                ret_dict['%s Recall' % clsname] = rec[key][-1]
                 rec_list.append(rec[key][-1])
             except:
-                ret_dict['%s Recall' % (clsname)] = 0
+                ret_dict['%s Recall' % clsname] = 0
                 rec_list.append(0)
         ret_dict['AR'] = np.mean(rec_list)
         return ret_dict
