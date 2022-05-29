@@ -289,7 +289,7 @@ def train_one_epoch():
 
 def evaluate_one_epoch():
     stat_dict = {}  # collect statistics
-    ap_calculator = VotenetAPCalculator(ap_iou_thresh=FLAGS.ap_iou_thresh,
+    ap_calculator = APCalculator(ap_iou_thresh=FLAGS.ap_iou_thresh,
                                  class2type_map=DATASET_CONFIG.class2type)
     net.eval()  # set model to eval mode (for bn and dp)
     for batch_idx, batch_data_label in enumerate(TEST_DATALOADER):

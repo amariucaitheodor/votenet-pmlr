@@ -305,6 +305,7 @@ class APCalculator(object):
         rec = {}
         prec = {}
         ap = {}
+        print(pred)
         for classname in gt.keys():
             print('Computing AP for class: ', classname)
             rec[classname], prec[classname], ap[classname] = eval_det_cls(pred[classname], gt[classname],

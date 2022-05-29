@@ -12,7 +12,8 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
-from nn_distance import nn_distance, huber_loss
+from nn_distance import nn_dista
+nce, huber_loss
 
 FAR_THRESHOLD = 0.6
 NEAR_THRESHOLD = 0.3
