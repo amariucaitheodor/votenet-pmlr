@@ -10,9 +10,7 @@ python train.py --dataset sunrgbd --log_dir log_sunrgb
 
 """
 
-from ap_helper import APCalculator, parse_predictions, parse_groundtruths
 import wandb
-from pytorch_utils import BNMomentumScheduler
 import os
 import sys
 import numpy as np
@@ -31,7 +29,8 @@ ROOT_DIR = BASE_DIR
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'pointnet2'))
 sys.path.append(os.path.join(ROOT_DIR, 'models'))
-# from tf_visualizer import Visualizer as TfVisualizer
+from ap_helper import APCalculator, parse_predictions, parse_groundtruths
+from pytorch_utils import BNMomentumScheduler
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', default='votenet',

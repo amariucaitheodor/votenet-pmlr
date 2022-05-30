@@ -1,5 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-# 
+#
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
@@ -16,8 +16,10 @@ sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 class AppleDatasetConfig(object):
     def __init__(self):
         self.num_class = 17
-        self.num_heading_bin = 12  # for heading bins you can probably use the same as what votenet used on SUNRGBD
-        self.num_size_cluster = 17  # for num_size_cluster you can use the number of semantic classes, same as on scannet
+        # for heading bins you can probably use the same as what votenet used on SUNRGBD
+        self.num_heading_bin = 12
+        # for num_size_cluster you can use the number of semantic classes, same as on scannet
+        self.num_size_cluster = 17
 
         self.type2class = {'cabinet': 0, 'refrigerator': 1, 'shelf': 2, 'stove': 3, 'bed': 4, 'sink': 5, 'washer': 6,
                            'toilet': 7, 'bathtub': 8, 'oven': 9, 'dishwasher': 10, 'fireplace': 11, 'stool': 12,
@@ -26,23 +28,23 @@ class AppleDatasetConfig(object):
         self.type2onehotclass = {'cabinet': 0, 'refrigerator': 1, 'shelf': 2, 'stove': 3, 'bed': 4, 'sink': 5,
                                  'washer': 6, 'toilet': 7, 'bathtub': 8, 'oven': 9, 'dishwasher': 10, 'fireplace': 11,
                                  'stool': 12, 'chair': 13, 'table': 14, 'tv_monitor': 15, 'sofa': 16}
-        self.type_mean_size = {'cabinet': np.array([0.49929752, 0.98864983, 1.06902208]),
-                               'refrigerator': np.array([0.69317901, 0.83925985, 1.78362792]),
-                               'shelf': np.array([0.34451816, 1.06582312, 1.28442023]),
-                               'stove': np.array([0.57476898, 0.78205954, 0.0930413]),
-                               'bed': np.array([2.11906018, 1.62292264, 0.61575489]),
-                               'sink': np.array([0.43687792, 0.52087483, 0.19492858]),
-                               'washer': np.array([0.65188205, 0.6185208, 0.87093902]),
-                               'toilet': np.array([0.63613452, 0.42283165, 0.74882042]),
-                               'bathtub': np.array([0.80622877, 1.76614899, 0.57439523]),
-                               'oven': np.array([0.6073346, 0.60937532, 0.75432479]),
-                               'dishwasher': np.array([0.67502088, 0.62215706, 0.91262674]),
-                               'fireplace': np.array([0.63435895, 1.56922212, 1.26271292]),
-                               'stool': np.array([0.41311146, 0.63806829, 0.47056733]),
-                               'chair': np.array([0.53437956, 0.47606608, 0.90516595]),
-                               'table': np.array([0.5678956, 0.949926, 0.61854677]),
-                               'tv_monitor': np.array([0.05225567, 0.90698287, 0.58970672]),
-                               'sofa': np.array([0.98468159, 1.55693327, 0.81914572])}
+        self.type_mean_size = {'cabinet': np.array([0.50535039, 0.99948107, 1.01409264]),
+                               'refrigerator': np.array([0.68699782, 0.78236207, 1.69539735]),
+                               'shelf': np.array([0.36185262, 0.96579244, 1.35701753]),
+                               'stove': np.array([0.57206923, 0.74432994, 0.15969855]),
+                               'bed': np.array([2.13424668, 1.5492419,  0.6371238]),
+                               'sink': np.array([0.4487786,  0.49777492, 0.18768632]),
+                               'washer': np.array([0.66299318, 0.61857649, 0.8749568]),
+                               'toilet': np.array([0.62535566, 0.41170164, 0.72598087]),
+                               'bathtub': np.array([0.78805841, 1.68880503, 0.58119007]),
+                               'oven': np.array([0.61922381, 0.63303137, 0.71439738]),
+                               'dishwasher': np.array([0.64387381, 0.58438052, 0.89909207]),
+                               'fireplace': np.array([0.66883935, 1.48875462, 1.18658762]),
+                               'stool': np.array([0.4108859,  0.61343751, 0.48144416]),
+                               'chair': np.array([0.54869829, 0.49846076, 0.90221954]),
+                               'table': np.array([0.59851039, 0.96247873, 0.61906196]),
+                               'tv_monitor': np.array([0.05492941, 0.90722642, 0.5792501]),
+                               'sofa': np.array([1.00251324, 1.60251208, 0.81406632])}
 
         self.mean_size_arr = np.zeros((self.num_size_cluster, 3))
         for i in range(self.num_size_cluster):
@@ -63,7 +65,7 @@ class AppleDatasetConfig(object):
         ''' Convert continuous angle to discrete class
             [optinal] also small regression number from  
             class center angle to current angle.
-           
+
             angle is from 0-2pi (or -pi~pi), class center at 0, 1*(2pi/N), 2*(2pi/N) ...  (N-1)*(2pi/N)
             return is class of int32 of 0,1,...,N-1 and a number such that
                 class*(2pi/N) + number = angle
@@ -74,7 +76,8 @@ class AppleDatasetConfig(object):
         angle_per_class = 2 * np.pi / float(num_class)
         shifted_angle = (angle + angle_per_class / 2) % (2 * np.pi)
         class_id = int(shifted_angle / angle_per_class)
-        residual_angle = shifted_angle - (class_id * angle_per_class + angle_per_class / 2)
+        residual_angle = shifted_angle - \
+            (class_id * angle_per_class + angle_per_class / 2)
         return class_id, residual_angle
 
     def class2angle(self, pred_cls, residual, to_label_format=True):
