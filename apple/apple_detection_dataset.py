@@ -76,6 +76,8 @@ class AppleDetectionVotesDataset(Dataset):
 
         bboxes = np.c_[bboxes, sem_labels]
 
+        assert(len(point_cloud[:, 2]) > 0, f"point_cloud[:, 2] had shape {point_cloud[:, 2].shape} for scene {scan_name} - please consider removing it")
+
         if self.use_height:
             floor_height = np.percentile(point_cloud[:, 2], 0.99)
             height = point_cloud[:, 2] - floor_height
