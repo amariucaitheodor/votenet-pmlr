@@ -1,22 +1,18 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-# 
+#
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
 """ Training routine for 3D object detection with SUN RGB-D or ScanNet.
 
 Sample usage:
-python train.py --dataset sunrgbd --log_dir log_sunrgbd
+python train.py --dataset sunrgbd --log_dir log_sunrgb
 
-To use Tensorboard:
-At server:
-    python -m tensorboard.main --logdir=<log_dir_name> --port=6006
-At local machine:
-    ssh -L 1237:localhost:6006 <server_name>
-Then go to local browser and type:
-    localhost:1237
 """
 
+from ap_helper import APCalculator, parse_predictions, parse_groundtruths
+import wandb
+from pytorch_utils import BNMomentumScheduler
 import os
 import sys
 import numpy as np
@@ -35,37 +31,55 @@ ROOT_DIR = BASE_DIR
 sys.path.append(os.path.join(ROOT_DIR, 'utils'))
 sys.path.append(os.path.join(ROOT_DIR, 'pointnet2'))
 sys.path.append(os.path.join(ROOT_DIR, 'models'))
-from pytorch_utils import BNMomentumScheduler
 # from tf_visualizer import Visualizer as TfVisualizer
-import wandb
-from ap_helper import APCalculator, VotenetAPCalculator, parse_predictions, parse_groundtruths
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model', default='votenet', help='Model file name [default: votenet]')
-parser.add_argument('--dataset', default='sunrgbd', help='Dataset name. sunrgbd or scannet. [default: sunrgbd]')
-parser.add_argument('--checkpoint_path', default=None, help='Model checkpoint path [default: None]')
-parser.add_argument('--log_dir', default='log', help='Dump dir to save model checkpoint [default: log]')
-parser.add_argument('--dump_dir', default=None, help='Dump dir to save sample outputs [default: None]')
-parser.add_argument('--num_point', type=int, default=200000, help='Point Number [default: 20000]')
-parser.add_argument('--num_target', type=int, default=256, help='Proposal number [default: 256]')
-parser.add_argument('--vote_factor', type=int, default=1, help='Vote factor [default: 1]')
+parser.add_argument('--model', default='votenet',
+                    help='Model file name [default: votenet]')
+parser.add_argument('--dataset', default='apple',
+                    help='Dataset name. sunrgbd or scannet. [default: apple]')
+parser.add_argument('--checkpoint_path', default=None,
+                    help='Model checkpoint path [default: None]')
+parser.add_argument('--log_dir', default='log',
+                    help='Dump dir to save model checkpoint [default: log]')
+parser.add_argument('--dump_dir', default='./votenet-model-apple-dump/',
+                    help='Dump dir to save sample outputs [default: None]')
+parser.add_argument('--num_point', type=int, default=250000,
+                    help='Point Number [default: 250000]')
+parser.add_argument('--num_target', type=int, default=256,
+                    help='Proposal number [default: 256]')
+parser.add_argument('--vote_factor', type=int, default=1,
+                    help='Vote factor [default: 1]')
 parser.add_argument('--cluster_sampling', default='vote_fps',
                     help='Sampling strategy for vote clusters: vote_fps, seed_fps, random [default: vote_fps]')
-parser.add_argument('--ap_iou_thresh', type=float, default=0.25, help='AP IoU threshold [default: 0.25]')
-parser.add_argument('--max_epoch', type=int, default=200, help='Epoch to run [default: 180]')
-parser.add_argument('--batch_size', type=int, default=16, help='Batch Size during training [default: 8]')
-parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
-parser.add_argument('--weight_decay', type=float, default=0, help='Optimization L2 weight decay [default: 0]')
-parser.add_argument('--bn_decay_step', type=int, default=20, help='Period of BN decay (in epochs) [default: 20]')
-parser.add_argument('--bn_decay_rate', type=float, default=0.1, help='Decay rate for BN decay [default: 0.5]')
+parser.add_argument('--ap_iou_thresh', type=float,
+                    default=0.25, help='AP IoU threshold [default: 0.25]')
+parser.add_argument('--max_epoch', type=int, default=200,
+                    help='Epoch to run [default: 200]')
+parser.add_argument('--batch_size', type=int, default=8,
+                    help='Batch Size during training [default: 8]')
+parser.add_argument('--learning_rate', type=float, default=0.001,
+                    help='Initial learning rate [default: 0.001]')
+parser.add_argument('--weight_decay', type=float, default=0,
+                    help='Optimization L2 weight decay [default: 0]')
+parser.add_argument('--bn_decay_step', type=int, default=20,
+                    help='Period of BN decay (in epochs) [default: 20]')
+parser.add_argument('--bn_decay_rate', type=float, default=0.1,
+                    help='Decay rate for BN decay [default: 0.5]')
 parser.add_argument('--lr_decay_steps', default='80,120,160',
                     help='When to decay the learning rate (in epochs) [default: 80,120,160]')
-parser.add_argument('--lr_decay_rates', default='0.1,0.1,0.1', help='Decay rates for lr decay [default: 0.1,0.1,0.1]')
-parser.add_argument('--no_height', action='store_true', help='Do NOT use height signal in input.')
-parser.add_argument('--use_color', action='store_true', help='Use RGB color in input.')
-parser.add_argument('--use_sunrgbd_v2', action='store_true', help='Use V2 box labels for SUN RGB-D dataset')
-parser.add_argument('--overwrite', action='store_true', help='Overwrite existing log and dump folders.')
-parser.add_argument('--dump_results', action='store_true', help='Dump results.')
+parser.add_argument('--lr_decay_rates', default='0.1,0.1,0.1',
+                    help='Decay rates for lr decay [default: 0.1,0.1,0.1]')
+parser.add_argument('--no_height', action='store_true',
+                    help='Do NOT use height signal in input.')
+parser.add_argument('--use_color', action='store_true',
+                    help='Use RGB color in input.')
+parser.add_argument('--use_sunrgbd_v2', action='store_true',
+                    help='Use V2 box labels for SUN RGB-D dataset')
+parser.add_argument('--overwrite', action='store_true',
+                    help='Overwrite existing log and dump folders.')
+parser.add_argument('--dump_results', action='store_true',
+                    help='Dump results.')
 FLAGS = parser.parse_args()
 
 # ------------------------------------------------------------------------- GLOBAL CONFIG BEG
@@ -77,7 +91,7 @@ BN_DECAY_STEP = FLAGS.bn_decay_step
 BN_DECAY_RATE = FLAGS.bn_decay_rate
 LR_DECAY_STEPS = [int(x) for x in FLAGS.lr_decay_steps.split(',')]
 LR_DECAY_RATES = [float(x) for x in FLAGS.lr_decay_rates.split(',')]
-assert (len(LR_DECAY_STEPS) == len(LR_DECAY_RATES))
+assert(len(LR_DECAY_STEPS) == len(LR_DECAY_RATES))
 LOG_DIR = FLAGS.log_dir
 DEFAULT_DUMP_DIR = os.path.join(BASE_DIR, os.path.basename(LOG_DIR))
 DUMP_DIR = FLAGS.dump_dir if FLAGS.dump_dir is not None else DEFAULT_DUMP_DIR
@@ -101,19 +115,21 @@ if not os.path.exists(LOG_DIR):
     os.mkdir(LOG_DIR)
 
 LOG_FOUT = open(os.path.join(LOG_DIR, 'log_train.txt'), 'a')
-LOG_FOUT.write(str(FLAGS) + '\n')
+LOG_FOUT.write(str(FLAGS)+'\n')
 
 
 def log_string(out_str):
-    LOG_FOUT.write(out_str + '\n')
+    LOG_FOUT.write(out_str+'\n')
     LOG_FOUT.flush()
     print(out_str)
 
 
-if not os.path.exists(DUMP_DIR): os.mkdir(DUMP_DIR)
-
+if not os.path.exists(DUMP_DIR):
+    os.mkdir(DUMP_DIR)
 
 # Init datasets and dataloaders
+
+
 def my_worker_init_fn(worker_id):
     np.random.seed(np.random.get_state()[1][0] + worker_id)
 
@@ -123,21 +139,21 @@ if FLAGS.dataset == 'sunrgbd':
     sys.path.append(os.path.join(ROOT_DIR, 'sunrgbd'))
     from sunrgbd_detection_dataset import SunrgbdDetectionVotesDataset, MAX_NUM_OBJ
     from model_util_sunrgbd import SunrgbdDatasetConfig
-
     DATASET_CONFIG = SunrgbdDatasetConfig()
     TRAIN_DATASET = SunrgbdDetectionVotesDataset('train', num_points=NUM_POINT,
                                                  augment=True,
-                                                 use_color=FLAGS.use_color, use_height=(not FLAGS.no_height),
+                                                 use_color=FLAGS.use_color, use_height=(
+                                                     not FLAGS.no_height),
                                                  use_v1=(not FLAGS.use_sunrgbd_v2))
     TEST_DATASET = SunrgbdDetectionVotesDataset('val', num_points=NUM_POINT,
                                                 augment=False,
-                                                use_color=FLAGS.use_color, use_height=(not FLAGS.no_height),
+                                                use_color=FLAGS.use_color, use_height=(
+                                                    not FLAGS.no_height),
                                                 use_v1=(not FLAGS.use_sunrgbd_v2))
 elif FLAGS.dataset == 'scannet':
     sys.path.append(os.path.join(ROOT_DIR, 'scannet'))
     from scannet_detection_dataset import ScannetDetectionDataset, MAX_NUM_OBJ
     from model_util_scannet import ScannetDatasetConfig
-
     DATASET_CONFIG = ScannetDatasetConfig()
     TRAIN_DATASET = ScannetDetectionDataset('train', num_points=NUM_POINT,
                                             augment=True,
@@ -149,7 +165,6 @@ elif FLAGS.dataset == 'apple':
     sys.path.append(os.path.join(ROOT_DIR, 'apple'))
     from model_util_apple import AppleDatasetConfig
     from apple_detection_dataset import AppleDetectionVotesDataset
-
     DATASET_CONFIG = AppleDatasetConfig()
     TRAIN_DATASET = AppleDetectionVotesDataset('train', num_points=NUM_POINT,
                                                use_height=(not FLAGS.no_height))
@@ -168,7 +183,7 @@ print(len(TRAIN_DATALOADER), len(TEST_DATALOADER))
 # Init the model and optimzier
 MODEL = importlib.import_module(FLAGS.model)  # import network module
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-num_input_channel = int(FLAGS.use_color) * 3 + int(not FLAGS.no_height) * 1
+num_input_channel = int(FLAGS.use_color)*3 + int(not FLAGS.no_height)*1
 
 if FLAGS.model == 'boxnet':
     Detector = MODEL.BoxNet
@@ -192,7 +207,8 @@ net.to(device)
 criterion = MODEL.get_loss
 
 # Load the Adam optimizer
-optimizer = optim.Adam(net.parameters(), lr=BASE_LEARNING_RATE, weight_decay=FLAGS.weight_decay)
+optimizer = optim.Adam(
+    net.parameters(), lr=BASE_LEARNING_RATE, weight_decay=FLAGS.weight_decay)
 
 # Load checkpoint if there is any
 it = -1  # for the initialize value of `LambdaLR` and `BNMomentumScheduler`
@@ -202,14 +218,21 @@ if CHECKPOINT_PATH is not None and os.path.isfile(CHECKPOINT_PATH):
     net.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     start_epoch = checkpoint['epoch']
-    log_string("-> loaded checkpoint %s (epoch: %d)" % (CHECKPOINT_PATH, start_epoch))
+    log_string("-> loaded checkpoint %s (epoch: %d)" %
+               (CHECKPOINT_PATH, start_epoch))
 
 # Decay Batchnorm momentum from 0.5 to 0.999
 # note: pytorch's BN momentum (default 0.1)= 1 - tensorflow's BN momentum
 BN_MOMENTUM_INIT = 0.1
 BN_MOMENTUM_MAX = 0.001
-bn_lbmd = lambda it: max(BN_MOMENTUM_INIT * BN_DECAY_RATE ** (int(it / BN_DECAY_STEP)), BN_MOMENTUM_MAX)
-bnm_scheduler = BNMomentumScheduler(net, bn_lambda=bn_lbmd, last_epoch=start_epoch - 1)
+
+
+def bn_lbmd(it): return max(BN_MOMENTUM_INIT * BN_DECAY_RATE **
+                            (int(it / BN_DECAY_STEP)), BN_MOMENTUM_MAX)
+
+
+bnm_scheduler = BNMomentumScheduler(
+    net, bn_lambda=bn_lbmd, last_epoch=start_epoch-1)
 
 
 def get_current_lr(epoch):
@@ -225,7 +248,6 @@ def adjust_learning_rate(optimizer, epoch):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-
 # TFBoard Visualizers
 # TRAIN_VISUALIZER = TfVisualizer(FLAGS, 'train')
 # TEST_VISUALIZER = TfVisualizer(FLAGS, 'test')
@@ -237,12 +259,13 @@ CONFIG_DICT = {'remove_empty_box': True, 'use_3d_nms': True,
                'per_class_proposal': True, 'conf_thresh': 0.05,
                'dataset_config': DATASET_CONFIG}
 
-
 # ------------------------------------------------------------------------- GLOBAL CONFIG END
+
 
 def train_log(loss_dict, ct):  # Where the magic happens
     wandb.log(loss_dict, step=ct)
-    print(f"Loss after " + str(ct).zfill(5) + f" examples: {loss_dict['loss']:.3f}")
+    print(f"Loss after " + str(ct).zfill(5) +
+          f" examples: {loss_dict['loss']:.3f}")
 
 
 def train_one_epoch():
@@ -261,7 +284,7 @@ def train_one_epoch():
 
         # Compute loss and gradients, update parameters.
         for key in batch_data_label:
-            assert (key not in end_points)
+            assert(key not in end_points)
             end_points[key] = batch_data_label[key]
         loss, end_points = criterion(end_points, DATASET_CONFIG)
         loss.backward()
@@ -270,20 +293,24 @@ def train_one_epoch():
         # Accumulate statistics and print out
         for key in end_points:
             if 'loss' in key or 'acc' in key or 'ratio' in key:
-                if key not in stat_dict: stat_dict[key] = 0
+                if key not in stat_dict:
+                    stat_dict[key] = 0
                 stat_dict[key] += end_points[key].item()
 
         batch_interval = 10
-        if (batch_idx + 1) % batch_interval == 0:
-            log_string(' ---- batch: %03d ----' % (batch_idx + 1))
-            loss_dict = {key: stat_dict[key] / batch_interval for key in stat_dict}
-            loss_dict['epoch'] = EPOCH_CNT  # TODO: not sure if this is correct
-            example_ct = (EPOCH_CNT * len(TRAIN_DATALOADER) + batch_idx) * BATCH_SIZE
+        if (batch_idx+1) % batch_interval == 0:
+            log_string(' ---- batch: %03d ----' % (batch_idx+1))
+            loss_dict = {key: stat_dict[key] /
+                            batch_interval for key in stat_dict}
+            loss_dict['epoch'] = EPOCH_CNT
+            example_ct = (EPOCH_CNT*len(TRAIN_DATALOADER) +
+                            batch_idx)*BATCH_SIZE
             train_log(loss_dict, example_ct)
             # TRAIN_VISUALIZER.log_scalars({key:stat_dict[key]/batch_interval for key in stat_dict},
             #     (EPOCH_CNT*len(TRAIN_DATALOADER)+batch_idx)*BATCH_SIZE)
             for key in sorted(stat_dict.keys()):
-                log_string('mean %s: %f' % (key, stat_dict[key] / batch_interval))
+                log_string('mean %s: %f' %
+                            (key, stat_dict[key]/batch_interval))
                 stat_dict[key] = 0
 
 
@@ -305,14 +332,15 @@ def evaluate_one_epoch():
 
         # Compute loss
         for key in batch_data_label:
-            assert (key not in end_points)
+            assert(key not in end_points)
             end_points[key] = batch_data_label[key]
         loss, end_points = criterion(end_points, DATASET_CONFIG)
 
         # Accumulate statistics and print out
         for key in end_points:
             if 'loss' in key or 'acc' in key or 'ratio' in key:
-                if key not in stat_dict: stat_dict[key] = 0
+                if key not in stat_dict:
+                    stat_dict[key] = 0
                 stat_dict[key] += end_points[key].item()
 
         batch_pred_map_cls = parse_predictions(end_points, CONFIG_DICT)
@@ -323,12 +351,13 @@ def evaluate_one_epoch():
         if FLAGS.dump_results and batch_idx == 0 and EPOCH_CNT % 10 == 0:
             MODEL.dump_results(end_points, DUMP_DIR, DATASET_CONFIG)
 
-            # # Log statistics
+    # # Log statistics
     # TEST_VISUALIZER.log_scalars({key:stat_dict[key]/float(batch_idx+1) for key in stat_dict},
     #     (EPOCH_CNT+1)*len(TRAIN_DATALOADER)*BATCH_SIZE)
 
     for key in sorted(stat_dict.keys()):
-        log_string('eval mean %s: %f' % (key, stat_dict[key] / (float(batch_idx + 1))))
+        log_string('eval mean %s: %f' %
+                   (key, stat_dict[key]/(float(batch_idx+1))))
 
     # Evaluate average precision
     metrics_dict = ap_calculator.compute_metrics()
@@ -336,7 +365,7 @@ def evaluate_one_epoch():
         log_string('eval %s: %f' % (key, metrics_dict[key]))
 
     wandb.log(metrics_dict)
-    mean_loss = stat_dict['loss'] / float(batch_idx + 1)
+    mean_loss = stat_dict['loss']/float(batch_idx+1)
     return mean_loss
 
 
@@ -347,15 +376,19 @@ def train(start_epoch):
     # start a new experiment
 
     # hyperparameters = get_hyperparameters() # TODO: implement this
-    # tell wandb to get started
-    with wandb.init(project="votenet-model-apple", entity="pmlr-votenet"):
+    wandb_config = CONFIG_DICT
+    wandb_config['batch_size']=FLAGS.batch_size
+    wandb_config['num_point']=FLAGS.num_point
+    wandb_config['learning_rate']=FLAGS.learning_rate
+    with wandb.init(project="votenet-model-apple", config=wandb_config, entity="pmlr-votenet"):
         # access all HPs through wandb.config, so logging matches execution!
         wandb.watch(net)
         for epoch in range(start_epoch, MAX_EPOCH):
             EPOCH_CNT = epoch
             log_string('**** EPOCH %03d ****' % (epoch))
             log_string('Current learning rate: %f' % (get_current_lr(epoch)))
-            log_string('Current BN decay momentum: %f' % (bnm_scheduler.lmbd(bnm_scheduler.last_epoch)))
+            log_string('Current BN decay momentum: %f' %
+                       (bnm_scheduler.lmbd(bnm_scheduler.last_epoch)))
             log_string(str(datetime.now()))
             # Reset numpy seed.
             # REF: https://github.com/pytorch/pytorch/issues/5059
@@ -364,7 +397,7 @@ def train(start_epoch):
             if EPOCH_CNT == 0 or EPOCH_CNT % 10 == 9:  # Eval every 10 epochs
                 loss = evaluate_one_epoch()
             # Save checkpoint
-            save_dict = {'epoch': epoch + 1,  # after training one epoch, the start_epoch should be epoch+1
+            save_dict = {'epoch': epoch+1,  # after training one epoch, the start_epoch should be epoch+1
                          'optimizer_state_dict': optimizer.state_dict(),
                          'loss': loss,
                          }
