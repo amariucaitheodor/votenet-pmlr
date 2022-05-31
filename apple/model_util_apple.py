@@ -18,7 +18,6 @@ class AppleDatasetConfig(object):
         self.num_class = 17
         # for heading bins you can probably use the same as what votenet used on SUNRGBD
         self.num_heading_bin = 12
-        # for num_size_cluster you can use the number of semantic classes, same as on scannet
         self.num_size_cluster = 17
 
         self.type2class = {'cabinet': 0, 'refrigerator': 1, 'shelf': 2, 'stove': 3, 'bed': 4, 'sink': 5, 'washer': 6,

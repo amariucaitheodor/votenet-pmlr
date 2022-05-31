@@ -23,12 +23,37 @@ If you find our work useful in your research, please consider citing:
 
 ## Installation
 
-Install [Pytorch](https://pytorch.org/get-started/locally/) and [Tensorflow](https://github.com/tensorflow/tensorflow) (for TensorBoard). It is required that you have access to GPUs. Matlab is required to prepare data for SUN RGB-D. The code is tested with Ubuntu 18.04, Pytorch v1.1, TensorFlow v1.14, CUDA 10.0 and cuDNN v7.4. Note: After a code update on 2/6/2020, the code is now also compatible with Pytorch v1.2+
+- Load the necessary Euler modules
 
-Compile the CUDA layers for [PointNet++](http://arxiv.org/abs/1706.02413), which we used in the backbone network:
+```
+env2lmod
+module load gcc/6.3.0 python_gpu/3.7.4 eth_proxy
+```
 
-    cd pointnet2
-    python setup.py install
+- Create new virtual environment and install dependencies. Install [Pytorch](https://pytorch.org/get-started/locally/). It is required that you have access to GPUs. Matlab is required to prepare data for SUN RGB-D. The code is tested with Ubuntu 18.04, Pytorch v1.1, TensorFlow v1.14, CUDA 10.0 and cuDNN v7.4. Note: After a code update on 2/6/2020, the code is now also compatible with Pytorch v1.2+
+
+```
+python3 -m venv venv-votenet
+source ./venv-votenet/bin/activate # activate virtual environment only after loading modules
+
+pip install torch==1.2 matplotlib opencv-python plyfile 'trimesh>=2.35.39,<2.35.40' 'networkx>=2.2,<2.3' wandb
+```
+
+- Compile the CUDA layers for [PointNet++](http://arxiv.org/abs/1706.02413), which we used in the backbone network:
+
+```
+cd pointnet2
+mkdir -p /cluster/home/YOUR_ID/votenet-pmlr/pointnet2/backbone/lib64/python3.7/site-packages/
+export PYTHONPATH=/cluster/home/YOUR_ID/votenet-pmlr/pointnet2/backbone/lib64/python3.7/site-packages/
+python setup.py install --prefix=/cluster/home/YOUR_ID/votenet-pmlr/pointnet2/backbone
+```
+
+- Run VoteNet on Apple dataset:
+
+```
+wandb login
+bsub -n 4 -W 24:00 -o apple.logs -R "rusage[mem=4096, ngpus_excl_p=1]" python train.py
+```
 
 To see if the compilation is successful, try to run `python models/votenet.py` to see if a forward pass works.
 
